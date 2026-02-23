@@ -34,7 +34,7 @@ sourceCpp("~/MGWmodel.cpp")
 ### Data Loading and Feature Engineering
 #############################################################
 # Load final dataset containing coordinates and survival variables
-dat.final <- read.csv("/final_data.csv")
+dat.final <- read.csv("~/final_data.csv")
 data.ori <- dat.final
 coordinates <- data.ori[, c("loc1", "loc2")]
 
