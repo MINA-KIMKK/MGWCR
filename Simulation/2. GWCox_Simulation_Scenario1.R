@@ -106,14 +106,14 @@ for (r in 1:1000){
                            lam = 1,
                            probC = 0,
                            tau = 10)
-kk
+
 ###################################################################### 
 # Initial Settings for Calibration
 data.ori <- data1
 coordinates <- data.ori[, c("loc1", "loc2")]
 data <- SpatialPointsDataFrame(coords = coordinates, data = data.ori)
-varnames = c("estop","estatus","X1","X2","X3")
-formula = Surv(estop,estatus==1) ~ X1 + X2 + X3
+varnames = c("estop","estatus","X1","X2")
+formula = Surv(estop,estatus==1) ~ X1 + X2
 longlat=FALSE
 hatmatrix=TRUE
 approach = "AIC"
@@ -126,8 +126,7 @@ parallel.arg=NULL
 bws.reOpts=5
 criterion="socf"
 max.iterations=30
-threshold1=10^-6
-threshold2=10^-5
+threshold=10^-5
 
 kernel.id <- switch(kernel,
                     gaussian = 0,
@@ -202,6 +201,7 @@ f.i <- betas*xx1
 
 iteration = 0 
 criterion.val <- 10000000  
+bws.vars <- c()
 while ((iteration < max.iterations) && criterion.val > threshold){
   # Update the linear predictor (eta) and linearized dependent variable (Z)
   eta.i <- rowSums(betas*xx1)
@@ -256,7 +256,9 @@ GWCR_trues1 <- truebetas
 GWCR_se1 <- res.se
 colnames(GWCR_bws_fix1) <- c("r", paste0("gwcr", 1:(ncol(GWCR_bws_fix1) - 1)))
 
-
+save(GWCR_bws_fix1, file = "./GWCR_bws1.RData")
+save(GWCR_betas_fix1, file = "./GWCR_betas1.RData")
+save(GWCR_se1, file = "./GWCR_se1.RData")
 
 ###################################################################
 ### Post-simulation Performance Analysis

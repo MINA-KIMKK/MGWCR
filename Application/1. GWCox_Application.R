@@ -33,7 +33,7 @@ sourceCpp("./src/MGWmodel.cpp")
 ### Data Loading and Feature Engineering
 #############################################################
 # Load final dataset containing coordinates and survival variables
-dat.final <- read.csv("~/final_data.csv")
+dat.final <- read.csv("./final_data.csv")
 data.ori <- dat.final
 coordinates <- data.ori[, c("loc1", "loc2")]
 
@@ -58,7 +58,7 @@ bws.reOpts=5
 criterion="socf"
 max.iterations=100
 threshold=10^-5
-num_threads=16
+num_threads=16 # Adjust based on system's available CPU cores
 kernel.id <- switch(kernel,
                     gaussian = 0,
                     exponential = 1,
@@ -127,6 +127,7 @@ f.i <- betas*x1
 iteration = 0 
 criterion.val <- 10000000  
 
+bws.vars <- c()
 while ((iteration < max.iterations) && criterion.val > threshold){
   print(paste0("iteration: ", iteration+1," / ","criterion.val: ",criterion.val))
   # Update the linear predictor (eta) and linearized dependent variable (Z)
@@ -178,6 +179,9 @@ GWCR_bws_app <- results
 GWCR_betas_app <- betas_df
 GWCR_betas_se_app <- res.se
 
+save(GWCR_bws_app, file = "./GWCR_bws_app_ny.RData")
+save(GWCR_betas_app, file = "./GWCR_betas_app_ny.RData")
+save(GWCR_betas_se_app, file = "./GWCR_betas_se_app_ny.RData")
 
 #############################################################
 ### Inference - Standard Error and P-value Calculation
@@ -195,10 +199,10 @@ sorted_data <- GWCR_se_app[order(GWCR_se_app$V6, rowSums(is.na(GWCR_se_app)), de
 loc_counts <- as.data.frame(table(GWCR_betas_app$loc)) %>% mutate(loc=as.numeric(as.character(Var1))) %>% rename(count=Freq)
 betas_res <- as.data.frame(GWCR_betas_app %>% group_by(loc) %>% slice(1))
 se_res <- as.data.frame(sorted_data %>% group_by(V6) %>% slice(1)) %>% rename(loc = V6)
-colnames(betas_res) <- c("agemo","marriage","income2","pm25","NDVI270","loc")
+colnames(betas_res) <- c("agemo","marriage","income","pm25","NDVI270","loc")
 GWCR_res <- betas_res %>%
   left_join(se_res,by="loc") %>%
-  rename(beta1=agemo,beta2=marriage,beta3=income2,beta4=pm25,beta5=NDVI270,
+  rename(beta1=agemo,beta2=marriage,beta3=income,beta4=pm25,beta5=NDVI270,
          se1=V1,se2=V2,se3=V3,se4=V4,se5=V5) %>%
   left_join(loc_counts, by="loc") %>%
   na.omit()

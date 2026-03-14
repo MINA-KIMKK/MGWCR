@@ -34,7 +34,7 @@ sourceCpp("./src/MGWmodel.cpp")
 ### Data Loading and Feature Engineering
 #############################################################
 # Load final dataset containing coordinates and survival variables
-dat.final <- read.csv("~/final_data.csv")
+dat.final <- read.csv("./final_data.csv")
 data.ori <- dat.final
 coordinates <- data.ori[, c("loc1", "loc2")]
 
@@ -61,7 +61,7 @@ max.iterations1=50
 max.iterations2=20
 threshold1=10^-6
 threshold2=10^-5
-num_threads=16
+num_threads=16  # Adjust based on system's available CPU cores
 kernel.id <- switch(kernel,
                     gaussian = 0,
                     exponential = 1,
@@ -114,8 +114,8 @@ dMat <- gw.dist(dp.locat,longlat=longlat)
 ## Initialization with GW Cox estimates 
 ######################################################################
 
-load("~/GWCR_betas_app_ny.RData")
-load("~/GWCR_bws_app_ny.RData")
+load("./GWCR_betas_app_ny.RData")
+load("./GWCR_bws_app_ny.RData")
 betas0 <- betas <- as.matrix(GWCR_betas_app[,1:var.n])
 bws0 <- rep(GWCR_bws_app, var.n)
 
@@ -257,7 +257,7 @@ while((iteration2 < max.iterations2) && criteria.outer > threshold2){
 
 # Store iteration results
 results <- bws.vars[nrow(bws.vars), ] # Optimal bandwidths
-betas_df <- as.data.frame(betas) %>% mutate(loc=dat.final$loc)
+betas_df <- as.data.frame(betas) %>% mutate(loc=dat.final$fips)
 
 ## Final Standard Error estimation
 lpl2 <- cox_derivatives_cpp(eta.i.se, time, status, num_threads = num_threads)
@@ -277,9 +277,9 @@ MGWCR_se_app <- res.se
 ### Inference - Standard Error and P-value Calculation
 #############################################################
 # coefficients
-colnames(MGWCR_betas_app) <- c("agemo","marriage","income","pm25","NDVI270")
+colnames(MGWCR_betas_app) <- c("agemo","marriage","income","pm25","NDVI270","loc")
 MGWCR_betas_app$NDVI270 <- MGWCR_betas_app$NDVI270*0.1
-GWCR_betas_app <- GWCR_betas_app %>% group_by(loc) %>% slice(1)
+MGWCR_betas_app <- MGWCR_betas_app %>% group_by(loc) %>% slice(1)
 
 # standard error
 MGWCR_se_app<- as.data.frame(MGWCR_se_app)

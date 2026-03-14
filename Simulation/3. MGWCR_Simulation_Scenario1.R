@@ -1,6 +1,6 @@
 ###################################################################
 ## MGWCR: Multiscale Geographically Weighted Cox Regression
-## Simulation Scenario 2 - Varied Spatial Heterogeneity (Constant, Medium, High)
+## Simulation Scenario 1 - Same Variation Scale 
 ###################################################################
 
 library(MASS)
@@ -26,22 +26,20 @@ sourceCpp("./src/cox_derivatives_parallel.cpp")
 sourceCpp("./src/gw_reg.cpp")
 sourceCpp("./src/MGWmodel.cpp")
 
-
 ###################################################################
 ### Data generation function
-### Generates survival data with three covariates 
+### Generates survival data with two covariates 
 ###################################################################
 
-data.generator1 <- function(N, lam, probC, tau){
-  getdata.f <- function(id, tau, lam, X1, X2, X3, coor) {
+data.generator2 <- function(N, lam, probC, tau){
+  getdata.f <- function(id, tau, lam, X1, X2, coor) {
     
-    # Define true beta surfaces with varying spatial scales
-    tbeta1 <- 1
-    tbeta2 <- 1/24 * (coor[1]+coor[2])
-    tbeta3 <- 1/360 * ((36-(6-coor[1]/2)^2)*(36-(6-coor[2]/2)^2))
-
+    # Define true beta surfaces with uniform spatial scale
+    tbeta1 <- 1/24 * (coor[1]+coor[2])
+    tbeta2 <- 1/24 * (coor[1]-coor[2])
+    
     # Hazard function following Cox Proportional Hazards model
-    lam <- lam * exp(tbeta1 * X1 + tbeta2 * X2 + tbeta3 * X3)
+    lam <- lam * exp(tbeta1 * X1 + tbeta2 * X2)
     
     # Generate survival time using exponential distribution
     cur.t <- rexp(1, rate=lam)
@@ -58,8 +56,7 @@ data.generator1 <- function(N, lam, probC, tau){
     }
     tmp <- data.frame(id = id, loc1 = coor[1], loc2 = coor[2], loc = coor[3],
                       estart = estart, estop = estop, estatus = estatus,
-                      tau = tau, X1 = X1, X2 = X2, X3 = X3,
-                      beta1=tbeta1, beta2=tbeta2, beta3=tbeta3)
+                      tau = tau, X1 = X1, X2 = X2, beta1=tbeta1, beta2=tbeta2)
     return(tmp)
   }
   
@@ -71,16 +68,13 @@ data.generator1 <- function(N, lam, probC, tau){
     CC <- ifelse(CC > tau, tau, CC)
   }
   
-  # Multivariate normal covariates with specific correlation structure
-  mean_vec <- c(0, 0, 0)
-  cov_matrix <- matrix(c(1, 0.8, 0.4,
-                         0.8, 1, 0.6,
-                         0.4, 0.6, 1), nrow = 3, ncol = 3)
+  # Multivariate normal covariates
+  mean_vec <- c(0, 0)  
+  cov_matrix <- matrix(c(1, 0.5, 0.5, 1), nrow = 2)
   # Generate multivariate normal covariates
   covariates <- mvrnorm(n = N, mu = mean_vec, Sigma = cov_matrix)
   X1 <- covariates[, 1]
   X2 <- covariates[, 2]
-  X3 <- covariates[, 3]
   
   # Coordinates representing the locations of a dataset
   griddf <- cbind(as.matrix(expand.grid(latcoords = seq(1, 25, 1),
@@ -90,7 +84,7 @@ data.generator1 <- function(N, lam, probC, tau){
   coor <- griddf[idx,]
   
   
-  event <- lapply(1:N, function(i) getdata.f(id = i, coor = coor[i,], X1 = X1[i], X2 = X2[i], X3 = X3[i],
+  event <- lapply(1:N, function(i) getdata.f(id = i, coor = coor[i,], X1 = X1[i], X2 = X2[i],
                                              tau = CC[i], lam = lam))
   data <- do.call(rbind, event)
   
@@ -105,21 +99,21 @@ res.se <-  list()
 
 # Run simulation loop (1000 iterations)
 iter=1000
-for (r in 1:iter){
+for (r in 1:1000){
   print(r)
   set.seed(r)
-  data1 <- data.generator1(N = 1250,
+  data1 <- data.generator2(N = 1250,
                            lam = 1,
                            probC = 0,
                            tau = 10)
-
+  
 ###################################################################### 
 # Initial Settings for Calibration
 data.ori <- data1
 coordinates <- data.ori[, c("loc1", "loc2")]
 data <- SpatialPointsDataFrame(coords = coordinates, data = data.ori)
-varnames = c("estop","estatus","X1","X2","X3")
-formula = Surv(estop,estatus==1) ~ X1 + X2 + X3
+varnames = c("estop","estatus","X1","X2")
+formula = Surv(estop,estatus==1) ~ X1 + X2 
 longlat=FALSE
 hatmatrix=TRUE
 approach = "AIC"
@@ -133,14 +127,15 @@ bws.reOpts=5
 criterion="socf"
 max.iterations=30
 threshold1=10^-6
-threshold2=10^-5
-  
+threshold2=10^-5  
+ 
 kernel.id <- switch(kernel,
                       gaussian = 0,
                       exponential = 1,
                       bisquare = 2,
                       tricube = 3,
                       boxcar = 4)
+  
   
 ###################################################################### 
 ## Data Pre-processing
@@ -154,14 +149,13 @@ if (is(data, "Spatial")){
 }else{
   stop("Given regression data must be Spatial*DataFrame")
 }
-  
+
 dp.n <- nrow(dp.locat) # sample size
 x <- data[,varnames[-(1:2)]]
 time <- data[,varnames[1]]
 status <- as.integer(data[,varnames[2]])
-var.n <- ncol(x)  
-  
-  
+var.n <- ncol(x)
+
 # Centering and scaling predictors
 predictor.centered <- rep(TRUE, length.out=var.n) # Centering and scaling predictors
 n.cent <- length(which(predictor.centered))
@@ -194,10 +188,10 @@ var.dMat.indx <- rep(1, var.n)
 ## Initialization with GW Cox estimates 
 ######################################################################
 
-load("~/GWCR_betas_mul.RData")
-load("~/GWCR_bws_mul.RData")
-betas0 <- betas <- as.matrix(GWCR_betas_fix[[r]][,1:var.n])
-bws0 <- rep(GWCR_bws_fix[r,2], var.n)
+load("./GWCR_betas1.RData")
+load("./GWCR_bws1.RData")
+betas0 <- betas <- as.matrix(GWCR_betas_fix1[[r]][,1:var.n])
+bws0 <- rep(GWCR_bws_fix1[r,2], var.n)
 
 # Construct initial adjusted dependent variable Z
 eta.i <- rowSums(betas*x1)
@@ -222,13 +216,12 @@ if(hatmatrix){
 
 
 #######################################################
-## Backfitting algorithm 
+## Backfitting algorithm
 #######################################################
 iteration2 <- 0 
 criteria.outer <- 10000000
 
 while((iteration2 < max.iterations) && criteria.outer > threshold2){ 
-  print(paste0("iteration2: ", iteration2," / ","criteria.outer: ",criteria.outer))
   eta.i.se <- eta.i
   f.i_old <- f.i
   f.i <- betas0 * x1
@@ -283,21 +276,21 @@ while((iteration2 < max.iterations) && criteria.outer > threshold2){
       f.i[,i] <- betas[,i]*x1[,i]
       f.i2 <- rowSums(f.i)
       Si <- res[[2]] # Aj
-      S.arrayi <- S.arrays[i,,] # Rj_old
+      S.arrayi <- S.arrays[i,,]
       S.arrays[i,,] <- Si%*%S.arrayi + Si - Si%*%Shat # Rj
-      Shat <- Shat- S.arrayi + S.arrays[i,,] # S 
+      Shat <- Shat- S.arrayi + S.arrays[i,,] # S # 약2초, 시간 4배 증가
+      
     }
     bws.vars <- rbind(bws.vars, bws) 
-    
+
     # Check convergence for inner loop via log-likelihood
     betas.df <- as.data.frame(betas) 
-    colnames(betas.df) <- c("V1","V2","V3")
+    colnames(betas.df) <- c("V1","V2")
     tmp <- cbind(betas.df,x1,time,status) %>%
       mutate(X1beta1 = X1*V1,
-             X2beta2 = X2*V2,
-             X3beta3 = X3*V3) 
-    m1 <- coxph(Surv(time, status)~X1beta1 + X2beta2 + X3beta3,
-                data=tmp, init=c(1,1,1), control=coxph.control(iter.max=0))
+             X2beta2 = X2*V2) 
+    m1 <- coxph(Surv(time, status)~X1beta1 + X2beta2,
+                data=tmp, init=c(1,1), control=coxph.control(iter.max=0))
     loglik.new <- m1$loglik[2]
     criteria.inner <- abs(1-loglik.old/loglik.new)
     loglik.old <- loglik.new
@@ -319,6 +312,7 @@ while((iteration2 < max.iterations) && criteria.outer > threshold2){
   criteria.outer <- socf
   
   iteration2 <- iteration2+1 
+  print(paste0("iteration2: ", iteration2," / ","criteria.outer: ",criteria.outer))
 }
 
 # Store iteration results
@@ -326,7 +320,7 @@ last_row <- bws.vars[nrow(bws.vars), ]
 results <- rbind(results, c(r, last_row))
 betas_df <- as.data.frame(betas) %>% mutate(loc=data1$loc)
 betahat[r] <- list(betas_df)
-truebetas[r] <- list(data1[,c("beta1","beta2","beta3")])
+truebetas[r] <- list(data1[,c("beta1","beta2")])
 
 ## Final Standard Error estimation
 lpl2 <- cox_derivatives_cpp(eta.i.se, time, status, num_threads = 5)
@@ -336,14 +330,13 @@ beta.se <- calculateBetaSE_Cpp(as.matrix(x1), dd, S_arrays_Cpp)
 res.se[r] <- list(cbind(beta.se,data1$loc)) 
 
 }  
+
 colnames(results) <- c("r", paste0("mgwcr", 1:(ncol(results) - 1)))
 
-MGWCR_bws_fix2 <- results
-MGWCR_betas_fix2 <- betahat
-MGWCR_trues2 <- truebetas
-MGWCR_se2 <- res.se
-
-
+MGWCR_bws_fix1 <- results
+MGWCR_betas_fix1 <- betahat
+MGWCR_trues1 <- truebetas
+MGWCR_se1 <- res.se
 
 
 ###################################################################
@@ -359,44 +352,43 @@ process <- function(parMat, trueBetas, standarderror){
   return(c(MAB = MAB,  MSE = MSE, MESE=MESE, MASE=MASE))
 }
 
-results.m <- lapply(1:3, function(i) {
+results.m <- lapply(1:2, function(i) {
   sapply(1:iter, function(r) {
-    process(MGWCR_betas_fix[[r]][,i], MGWCR_trues[[r]][,i], MGWCR_se[[r]][,i])
+    process(MGWCR_betas_fix1[[r]][,i], MGWCR_trues1[[r]][,i], MGWCR_se1[[r]][,i])
   })
 })
 mean_results <- lapply(results.m, rowMeans)
-for (i in 1:3) print(mean_results[[i]])
+for (i in 1:2) print(mean_results[[i]])
+
 
 # estimates(betas)
-betas_mgwcr <- do.call(rbind, MGWCR_betas_fix)
+betas_mgwcr <- do.call(rbind, MGWCR_betas_fix1)
 betas_mgwcr2 <- as.data.frame(betas_mgwcr)%>% group_by(loc) %>%
   summarise(V1 = mean(X1),
-            V2 = mean(X2),
-            V3 = mean(X3))
-betas_mgwcr2 <- as.data.frame(betas_mgwcr2)
+            V2 = mean(X2))
+betas_mgwcr1 <- as.data.frame(betas_mgwcr2)
 
-# mab, mse
-mse_mgwcr2<-cbind(t(results.m[[1]][1:2,]),t(results.m[[2]][1:2,]),t(results.m[[3]][1:2,]))
+# MSE
+mse_mgwcr1<-data.frame(mgwcr1_mse1=results[[1]][2,],mgwcr1_mse2=results[[2]][2,])
 
 
 # standard error
-betahat_with_r <- lapply(1:length(MGWCR_betas_fix2), function(i) {
-  df <- as.data.frame(MGWCR_betas_fix2[[i]])
+betahat_with_r <- lapply(1:length(MGWCR_betas_fix1), function(i) {
+  df <- as.data.frame(MGWCR_betas_fix1[[i]])
   df$r <- i
   return(df)
 })
 betahat_df.m <- do.call(rbind, betahat_with_r)%>% group_by(loc, r) %>% slice(1)
 betas_sd.m <- betahat_df.m %>% group_by(loc) %>%
-  summarise(V1 = sd(X1),
-            V2 = sd(X2),
-            V3 = sd(X3))
+  summarise(V1_sd = sd(X1),
+            V2_sd = sd(X2))
 
-res.se_df <- do.call(rbind, MGWCR_se)
-se_avg <- as.data.frame(res.se_df)%>% group_by(V4) %>%
-  summarise(V1 = mean(V1),
-            V2 = mean(V2),
-            V3 = mean(V3))
+res.se_df <- do.call(rbind, MGWCR2_se)
+se_avg <- as.data.frame(res.se_df)%>% group_by(V3) %>%
+  summarise(V1_avg = mean(V1),
+            V2_avg = mean(V2))
 
-sdbetas_mgwcr2 <- as.data.frame(betas_sd.m)
-seavg_mgwcr2 <- as.data.frame(se_avg)
+sdbetas_mgwcr1 <- as.data.frame(betas_sd.m)
+seavg_mgwcr1 <- as.data.frame(se_avg)
+
 

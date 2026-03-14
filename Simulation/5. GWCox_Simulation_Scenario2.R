@@ -132,8 +132,7 @@ parallel.arg=NULL
 bws.reOpts=5
 criterion="socf"
 max.iterations=30
-threshold1=10^-6
-threshold2=10^-5
+threshold=10^-5
 
 kernel.id <- switch(kernel,
                     gaussian = 0,
@@ -209,6 +208,7 @@ f.i <- betas*xx1
 
 iteration = 0 
 criterion.val <- 10000000  
+bws.vars <- c()
 while ((iteration < max.iterations) && criterion.val > threshold){
   # Update the linear predictor (eta) and linearized dependent variable (Z)
   eta.i <- rowSums(betas*xx1)
@@ -263,6 +263,9 @@ GWCR_trues2 <- truebetas
 GWCR_se2 <- res.se
 colnames(GWCR_bws_fix2) <- c("r", paste0("gwcr", 1:(ncol(GWCR_bws_fix2) - 1)))
 
+save(GWCR_bws_fix2, file = "./GWCR_bws2.RData")
+save(GWCR_betas_fix2, file = "./GWCR_betas2.RData")
+save(GWCR_se2, file = "./GWCR_se2.RData")
 
 ###################################################################
 ### Post-simulation Performance Analysis

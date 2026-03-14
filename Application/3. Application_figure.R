@@ -8,7 +8,6 @@ library(ggplot2)
 library(sf)
 library(tigris)
 library(dplyr)
-library(openxlsx)
 
 
 ##################################
@@ -26,7 +25,7 @@ plot_state_counties <- function(data,
   coef.app <- data %>% mutate(GEOID = as.factor(loc))
   
   florida_map <- florida_counties %>%
-    left_join(coef.app, by = "loc")
+    left_join(coef.app, by = "GEOID")
   
   # automatically setting limitations
   if (is.null(limits)){
