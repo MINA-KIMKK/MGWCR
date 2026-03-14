@@ -18,13 +18,13 @@ rename <- dplyr::rename
 summarise <- dplyr::summarise 
 
 # Source core MGWCR R-functions and C++ scripts for high-performance computing
-source("~/bw.sel.r")
-source("~/gw.weight.r")
-source("~/gw.dist.r")
-source("~/mgwcr_func.R")
-sourceCpp("~/cox_derivatives_parallel.cpp")
-sourceCpp("~/gw_reg.cpp")
-sourceCpp("~/MGWmodel.cpp")
+source("~/R/bw.sel.r")
+source("~/R/gw.weight.r")
+source("~/R/gw.dist.r")
+source("~/R/mgwcr_func.R")
+sourceCpp("~/src/cox_derivatives_parallel.cpp")
+sourceCpp("~/src/gw_reg.cpp")
+sourceCpp("~/src/MGWmodel.cpp")
 
 ###################################################################
 ### Data generation function
@@ -333,36 +333,15 @@ res.se[r] <- list(cbind(beta.se,data1$loc))
 
 colnames(results) <- c("r", paste0("mgwcr", 1:(ncol(results) - 1)))
 
-MGWCR2_bws_fix <- results
-MGWCR2_betas_fix <- betahat
-MGWCR2_trues <- truebetas
-MGWCR2_se <- res.se
+MGWCR_bws_fix1 <- results
+MGWCR_betas_fix1 <- betahat
+MGWCR_trues1 <- truebetas
+MGWCR_se1 <- res.se
 
 
 ###################################################################
 ### Post-simulation Performance Analysis
 ###################################################################
-# standard error
-betahat_with_r <- lapply(1:length(MGWCR2_betas_fix), function(i) {
-  df <- as.data.frame(MGWCR2_betas_fix[[i]])
-  df$r <- i
-  return(df)
-})
-betahat_df.m <- do.call(rbind, betahat_with_r)%>% group_by(loc, r) %>% slice(1)
-betas_sd.m <- betahat_df.m %>% group_by(loc) %>%
-  summarise(V1_sd = sd(X1),
-            V2_sd = sd(X2))
-MESE <- colMeans(betas_sd.m);MESE
-
-res.se_df <- do.call(rbind, MGWCR2_se)
-se_avg <- as.data.frame(res.se_df)%>% group_by(V3) %>%
-  summarise(V1_avg = mean(V1),
-            V2_avg = mean(V2))
-MASE <- colMeans(se_avg);MASE
-
-# print(betas_sd.m, n = Inf)
-# print(se_avg, n = Inf)
-
 
 # performance
 process <- function(parMat, trueBetas, standarderror){
@@ -375,7 +354,7 @@ process <- function(parMat, trueBetas, standarderror){
 
 results.m <- lapply(1:2, function(i) {
   sapply(1:iter, function(r) {
-    process(MGWCR2_betas_fix[[r]][,i], MGWCR2_trues[[r]][,i], MGWCR2_se[[r]][,i])
+    process(MGWCR_betas_fix1[[r]][,i], MGWCR_trues1[[r]][,i], MGWCR_se1[[r]][,i])
   })
 })
 mean_results <- lapply(results.m, rowMeans)
@@ -383,14 +362,33 @@ for (i in 1:2) print(mean_results[[i]])
 
 
 # estimates(betas)
-betas_mgwcr <- do.call(rbind, MGWCR2_betas_fix)
+betas_mgwcr <- do.call(rbind, MGWCR_betas_fix1)
 betas_mgwcr2 <- as.data.frame(betas_mgwcr)%>% group_by(loc) %>%
   summarise(V1 = mean(X1),
             V2 = mean(X2))
-print(betas_mgwcr2, n = Inf)
+betas_mgwcr1 <- as.data.frame(betas_mgwcr2)
 
-# mab, mse
-mse_mgwcr1<-cbind(t(results.m[[1]][1:2,]),t(results.m[[2]][1:2,]))
+# MSE
+mse_mgwcr1<-data.frame(mgwcr1_mse1=results[[1]][2,],mgwcr1_mse2=results[[2]][2,])
 
+
+# standard error
+betahat_with_r <- lapply(1:length(MGWCR_betas_fix1), function(i) {
+  df <- as.data.frame(MGWCR_betas_fix1[[i]])
+  df$r <- i
+  return(df)
+})
+betahat_df.m <- do.call(rbind, betahat_with_r)%>% group_by(loc, r) %>% slice(1)
+betas_sd.m <- betahat_df.m %>% group_by(loc) %>%
+  summarise(V1_sd = sd(X1),
+            V2_sd = sd(X2))
+
+res.se_df <- do.call(rbind, MGWCR2_se)
+se_avg <- as.data.frame(res.se_df)%>% group_by(V3) %>%
+  summarise(V1_avg = mean(V1),
+            V2_avg = mean(V2))
+
+sdbetas_mgwcr1 <- as.data.frame(betas_sd.m)
+seavg_mgwcr1 <- as.data.frame(se_avg)
 
 

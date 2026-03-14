@@ -20,13 +20,13 @@ rename <- dplyr::rename
 summarise <- dplyr::summarise 
 
 # Source core MGWCR R-functions and C++ scripts for high-performance computing
-source("~/bw.sel.r")
-source("~/gw.weight.r")
-source("~/gw.dist.r")
-source("~/mgwcr_func.R")
-sourceCpp("~/cox_derivatives_parallel.cpp")
-sourceCpp("~/gw_reg.cpp")
-sourceCpp("~/MGWmodel.cpp")
+source("~/R/bw.sel.r")
+source("~/R/gw.weight.r")
+source("~/R/gw.dist.r")
+source("~/R/mgwcr_func.R")
+sourceCpp("~/src/cox_derivatives_parallel.cpp")
+sourceCpp("~/src/gw_reg.cpp")
+sourceCpp("~/src/MGWmodel.cpp")
 
 
 #############################################################
@@ -185,14 +185,13 @@ GWCR_betas_se_app <- res.se
 
 # coefficients
 GWCR_betas_app$NDVI270 <- GWCR_betas_app$NDVI270*0.1
-as.data.frame(GWCR_betas_app %>% group_by(loc) %>% slice(1))
+GWCR_betas_app <- GWCR_betas_app %>% group_by(loc) %>% slice(1)
 
 # standard error
 GWCR_se_app<- as.data.frame(GWCR_betas_se_app)
 sorted_data <- GWCR_se_app[order(GWCR_se_app$V6, rowSums(is.na(GWCR_se_app)), decreasing = FALSE), ]
-as.data.frame(sorted_data %>% group_by(V7) %>% slice(1))
 
-# p-value
+# p-value(Bonferroni correction)
 loc_counts <- as.data.frame(table(GWCR_betas_app$loc)) %>% mutate(loc=as.numeric(as.character(Var1))) %>% rename(count=Freq)
 betas_res <- as.data.frame(GWCR_betas_app %>% group_by(loc) %>% slice(1))
 se_res <- as.data.frame(sorted_data %>% group_by(V6) %>% slice(1)) %>% rename(loc = V6)
@@ -212,7 +211,6 @@ GWCR_res$p_beta2 <- 2 * (1-pt(abs(GWCR_res$beta2/GWCR_res$se2),df=sum(GWCR_res$c
 GWCR_res$p_beta3 <- 2 * (1-pt(abs(GWCR_res$beta3/GWCR_res$se3),df=sum(GWCR_res$count)-k-1))
 GWCR_res$p_beta4 <- 2 * (1-pt(abs(GWCR_res$beta4/GWCR_res$se4),df=sum(GWCR_res$count)-k-1))
 GWCR_res$p_beta5 <- 2 * (1-pt(abs(GWCR_res$beta5/GWCR_res$se5),df=sum(GWCR_res$count)-k-1))
-GWCR_res$p_beta6 <- 2 * (1-pt(abs(GWCR_res$beta5/GWCR_res$se6),df=sum(GWCR_res$count)-k-1))
 
 # Bonferroni correction
 GWCR_res$p_beta1_bonf <- pmin(GWCR_res$p_beta1 * n_tests, 1)
@@ -220,8 +218,6 @@ GWCR_res$p_beta2_bonf <- pmin(GWCR_res$p_beta2 * n_tests, 1)
 GWCR_res$p_beta3_bonf <- pmin(GWCR_res$p_beta3 * n_tests, 1)
 GWCR_res$p_beta4_bonf <- pmin(GWCR_res$p_beta4 * n_tests, 1)
 GWCR_res$p_beta5_bonf <- pmin(GWCR_res$p_beta5 * n_tests, 1)
-GWCR_res$p_beta6_bonf <- pmin(GWCR_res$p_beta6 * n_tests, 1)
 
-print(GWCR_res[, c("p_beta1_bonf", "p_beta2_bonf", "p_beta3_bonf", "p_beta4_bonf", "p_beta5_bonf", "loc")])
-print(GWCR_res[, c("p_beta1_bonf", "p_beta2_bonf", "p_beta3_bonf", "p_beta4_bonf", "p_beta5_bonf", "p_beta6_bonf", "loc")])
+GWCR_pvals_app <- GWCR_res[, c("agemo", "marriage", "income", "pm25", "NDVI270", "loc")]
 

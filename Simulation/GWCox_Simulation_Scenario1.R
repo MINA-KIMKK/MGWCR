@@ -18,13 +18,13 @@ rename <- dplyr::rename
 summarise <- dplyr::summarise 
 
 # Source core MGWCR R-functions and C++ scripts for high-performance computing
-source("~/bw.sel.r")
-source("~/gw.weight.r")
-source("~/gw.dist.r")
-source("~/mgwcr_func.R")
-sourceCpp("~/cox_derivatives_parallel.cpp")
-sourceCpp("~/gw_reg.cpp")
-sourceCpp("~/MGWmodel.cpp")
+source("~/R/bw.sel.r")
+source("~/R/gw.weight.r")
+source("~/R/gw.dist.r")
+source("~/R/mgwcr_func.R")
+sourceCpp("~/src/cox_derivatives_parallel.cpp")
+sourceCpp("~/src/gw_reg.cpp")
+sourceCpp("~/src/MGWmodel.cpp")
 
 ###################################################################
 ### Data generation function
@@ -250,11 +250,18 @@ beta.se <- calculateBetaSE_Cpp(as.matrix(xx1), dd, S_arrays_Cpp)
 res.se[r] <- list(cbind(beta.se,data1$loc)) 
 }
 
-GWCR_bws_fix <- results
-GWCR_betas_fix <- betahat
-GWCR_trues <- truebetas
-GWCR_se <- res.se
-colnames(GWCR_bws_fix) <- c("r", paste0("gwcr", 1:(ncol(GWCR_bws_fix) - 1)))
+GWCR_bws_fix1 <- results
+GWCR_betas_fix1 <- betahat
+GWCR_trues1 <- truebetas
+GWCR_se1 <- res.se
+colnames(GWCR_bws_fix1) <- c("r", paste0("gwcr", 1:(ncol(GWCR_bws_fix1) - 1)))
+
+
+
+###################################################################
+### Post-simulation Performance Analysis
+###################################################################
+
 
 # performance
 process <- function(parMat, trueBetas, standarderror){
@@ -265,20 +272,40 @@ process <- function(parMat, trueBetas, standarderror){
   return(c(MAB = MAB,  MSE = MSE, MESE=MESE, MASE=MASE))
 }
 
-results.m <- lapply(1:3, function(i) {
+results.m <- lapply(1:2, function(i) {
   sapply(1:iter, function(r) {
-    process(GWCR_betas_fix[[r]][,i], GWCR_trues[[r]][,i], GWCR_se[[r]][,i])
+    process(GWCR_betas_fix1[[r]][,i], GWCR_trues1[[r]][,i], GWCR_se1[[r]][,i])
   })
 })
 mean_results <- lapply(results.m, rowMeans)
 for (i in 1:2) print(mean_results[[i]])
 
 # estimates(betas)
-betas_gwcr <- do.call(rbind, GWCR_betas_fix)
+betas_gwcr <- do.call(rbind, GWCR_betas_fix1)
 betas_gwcr2 <- as.data.frame(betas_gwcr)%>% group_by(loc) %>%
   summarise(V1 = mean(X1),
             V2 = mean(X2))
-print(betas_gwcr2, n = Inf)
+betas_gwcr1 <- as.data.frame(betas_gwcr2)
 
-# mab, mse
-mse_gwcr1<-cbind(t(results.m[[1]][1:2,]),t(results.m[[2]][1:2,]))
+# MSE
+mse_gwcr1<-data.frame(gwcr1_mse1=results[[1]][2,],gwcr1_mse2=results[[2]][2,])
+
+
+# standard error
+betahat_with_r <- lapply(1:length(GWCR_betas_fix1), function(i) {
+  df <- as.data.frame(GWCR_betas_fix1[[i]])
+  df$r <- i
+  return(df)
+})
+betahat_df <- do.call(rbind, betahat_with_r)%>% group_by(loc, r) %>% slice(1)
+betas_sd <- betahat_df %>% group_by(loc) %>%
+  summarise(V1 = sd(X1),
+            V2 = sd(X2))
+
+res.se_df <- do.call(rbind, GWCR_se)
+se_avg <- as.data.frame(res.se_df) %>% group_by(V3) %>%
+  summarise(V1 = mean(V1),
+            V2 = mean(V2))
+
+sdbetas_gwcr1 <- as.data.frame(betas_sd)
+seavg_gwcr1 <- as.data.frame(se_avg)

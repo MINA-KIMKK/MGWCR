@@ -21,13 +21,13 @@ rename <- dplyr::rename
 summarise <- dplyr::summarise 
 
 # Source core MGWCR R-functions and C++ scripts for high-performance computing
-source("~/bw.sel.r")
-source("~/gw.weight.r")
-source("~/gw.dist.r")
-source("~/mgwcr_func.R")
-sourceCpp("~/cox_derivatives_parallel.cpp")
-sourceCpp("~/gw_reg.cpp")
-sourceCpp("~/MGWmodel.cpp")
+source("~/R/bw.sel.r")
+source("~/R/gw.weight.r")
+source("~/R/gw.dist.r")
+source("~/R/mgwcr_func.R")
+sourceCpp("~/src/cox_derivatives_parallel.cpp")
+sourceCpp("~/src/gw_reg.cpp")
+sourceCpp("~/src/MGWmodel.cpp")
 
 
 #############################################################
@@ -277,10 +277,9 @@ MGWCR_se_app <- res.se
 ### Inference - Standard Error and P-value Calculation
 #############################################################
 # coefficients
-colnames(MGWCR_betas_app) <- c("agemo","white0","marriage","income2","NDVI270")
-MGWCR_betas_app <- MGWCR_betas_app %>% mutate(loc=as.data.frame(MGWCR_se_app)$V6)
+colnames(MGWCR_betas_app) <- c("agemo","marriage","income","pm25","NDVI270")
 MGWCR_betas_app$NDVI270 <- MGWCR_betas_app$NDVI270*0.1
-as.data.frame(MGWCR_betas_app %>% group_by(loc) %>% slice(1))
+GWCR_betas_app <- GWCR_betas_app %>% group_by(loc) %>% slice(1)
 
 # standard error
 MGWCR_se_app<- as.data.frame(MGWCR_se_app)
@@ -299,12 +298,10 @@ MGWCR_res <- betas_res %>%
 k <- 5
 n_tests <- 5
 MGWCR_res$p_beta1 <- 2 * (1-pt(abs(MGWCR_res$agemo/MGWCR_res$V1),df=sum(MGWCR_res$count)-k-1))
-MGWCR_res$p_beta2 <- 2 * (1-pt(abs(MGWCR_res$white0/MGWCR_res$V2),df=sum(MGWCR_res$count)-k-1))
-MGWCR_res$p_beta3 <- 2 * (1-pt(abs(MGWCR_res$marriage/MGWCR_res$V3),df=sum(MGWCR_res$count)-k-1))
-MGWCR_res$p_beta4 <- 2 * (1-pt(abs(MGWCR_res$income2/MGWCR_res$V4),df=sum(MGWCR_res$count)-k-1))
-MGWCR_res$p_beta5 <- 2 * (1-pt(abs(MGWCR_res$NDVI90/MGWCR_res$V5),df=sum(MGWCR_res$count)-k-1))
-# MGWCR_res$p_beta6 <- 2 * (1-pt(abs(MGWCR_res$NDVI270/MGWCR_res$V6),df=sum(MGWCR_res$count)-k-1))
-# print(MGWCR_res[, c("p_beta1", "p_beta2", "p_beta3", "p_beta4", "p_beta5","loc")])
+MGWCR_res$p_beta2 <- 2 * (1-pt(abs(MGWCR_res$marriage/MGWCR_res$V2),df=sum(MGWCR_res$count)-k-1))
+MGWCR_res$p_beta3 <- 2 * (1-pt(abs(MGWCR_res$income/MGWCR_res$V3),df=sum(MGWCR_res$count)-k-1))
+MGWCR_res$p_beta4 <- 2 * (1-pt(abs(MGWCR_res$pm25/MGWCR_res$V4),df=sum(MGWCR_res$count)-k-1))
+MGWCR_res$p_beta5 <- 2 * (1-pt(abs(MGWCR_res$NDVI270/MGWCR_res$V5),df=sum(MGWCR_res$count)-k-1))
 
 # Bonferroni correction
 MGWCR_res$p_beta1_bonf <- pmin(MGWCR_res$p_beta1 * n_tests, 1)
@@ -312,8 +309,6 @@ MGWCR_res$p_beta2_bonf <- pmin(MGWCR_res$p_beta2 * n_tests, 1)
 MGWCR_res$p_beta3_bonf <- pmin(MGWCR_res$p_beta3 * n_tests, 1)
 MGWCR_res$p_beta4_bonf <- pmin(MGWCR_res$p_beta4 * n_tests, 1)
 MGWCR_res$p_beta5_bonf <- pmin(MGWCR_res$p_beta5 * n_tests, 1)
-# MGWCR_res$p_beta6_bonf <- pmin(MGWCR_res$p_beta6 * n_tests, 1)
 
-print(MGWCR_res[, c("p_beta1_bonf", "p_beta2_bonf", "p_beta3_bonf", "p_beta4_bonf", "p_beta5_bonf", "loc")])
-print(MGWCR_res[, c("p_beta1_bonf", "p_beta2_bonf", "p_beta3_bonf", "p_beta4_bonf", "p_beta5_bonf", "p_beta6_bonf", "loc")])
+MGWCR_pvals_app <- MGWCR_res[, c("agemo", "marriage", "income", "pm25", "NDVI270", "loc")]
 
