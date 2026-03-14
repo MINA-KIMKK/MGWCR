@@ -21,13 +21,13 @@ rename <- dplyr::rename
 summarise <- dplyr::summarise 
 
 # Source core MGWCR R-functions and C++ scripts for high-performance computing
-source("~/R/bw.sel.r")
-source("~/R/gw.weight.r")
-source("~/R/gw.dist.r")
-source("~/R/mgwcr_func.R")
-sourceCpp("~/src/cox_derivatives_parallel.cpp")
-sourceCpp("~/src/gw_reg.cpp")
-sourceCpp("~/src/MGWmodel.cpp")
+source("./R/bw.sel.r")
+source("./R/gw.weight.r")
+source("./R/gw.dist.r")
+source("./R/mgwcr_func.R")
+sourceCpp("./src/cox_derivatives_parallel.cpp")
+sourceCpp("./src/gw_reg.cpp")
+sourceCpp("./src/MGWmodel.cpp")
 
 
 #############################################################
