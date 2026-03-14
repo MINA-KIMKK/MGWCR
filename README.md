@@ -95,6 +95,3 @@ The empirical study applies MGWCR to analyze the spatially varying risk factors 
 | 2 | `Application/2__MGWCR_Application.R` | MGWCR covariate-specific bandwidths (Table 2), spatially varying coefficients, and p-values |
 | 3 | `Application/3__Application_figure.R` | Reproduces Figures 3-6 (coefficient maps and p-value maps) |
 
-### Figure 1
-
-Figure 1 is a study area map of New York State counties, generated using county boundary shapefiles from the `tigris` R package.
